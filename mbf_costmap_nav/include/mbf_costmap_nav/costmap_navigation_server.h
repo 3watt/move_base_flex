@@ -257,6 +257,7 @@ private:
 
   //! Shared pointer to the common global costmap
   const CostmapWrapper::Ptr global_costmap_ptr_;
+  const CostmapWrapper::Ptr global_map_ptr_;
 
   //! Maps planner names to the costmap ptr.
   StringToMap planner_name_to_costmap_ptr_;

@@ -76,7 +76,8 @@ static std::string getStringElement(const XmlRpc::XmlRpcValue& value, const std:
  */
 StringToMap loadStringToMapsImpl(const std::string& resource, const ros::NodeHandle& nh,
                                  const CostmapWrapper::Ptr& global_costmap_ptr,
-                                 const CostmapWrapper::Ptr& local_costmap_ptr)
+                                 const CostmapWrapper::Ptr& local_costmap_ptr,
+                                 const CostmapWrapper::Ptr& global_map_ptr)
 {
   using namespace XmlRpc;
   XmlRpcValue raw;
@@ -94,6 +95,7 @@ StringToMap loadStringToMapsImpl(const std::string& resource, const ros::NodeHan
   // We support only 'local' or 'global' names for the costmap tag.
   mapping["global"] = global_costmap_ptr;
   mapping["local"] = local_costmap_ptr;
+  mapping["clean"] = global_map_ptr;
 
   const int size = raw.size();
   for (int ii = 0; ii != size; ++ii)
@@ -136,11 +138,12 @@ StringToMap loadStringToMapsImpl(const std::string& resource, const ros::NodeHan
  */
 StringToMap loadStringToMaps(const std::string& resource, const ros::NodeHandle& nh,
                              const CostmapWrapper::Ptr& global_costmap_ptr,
-                             const CostmapWrapper::Ptr& local_costmap_ptr)
+                             const CostmapWrapper::Ptr& local_costmap_ptr,
+                             const CostmapWrapper::Ptr& global_map_ptr)
 {
   try
   {
-    return loadStringToMapsImpl(resource, nh, global_costmap_ptr, local_costmap_ptr);
+    return loadStringToMapsImpl(resource, nh, global_costmap_ptr, local_costmap_ptr, global_map_ptr);
   }
   catch (const XmlRpc::XmlRpcException& _ex)
   {
@@ -162,6 +165,7 @@ CostmapNavigationServer::CostmapNavigationServer(const TFPtr &tf_listener_ptr) :
   planner_plugin_loader_("mbf_costmap_core", "mbf_costmap_core::CostmapPlanner"),
   nav_core_planner_plugin_loader_("nav_core", "nav_core::BaseGlobalPlanner"),
   global_costmap_ptr_(new CostmapWrapper("global_costmap", tf_listener_ptr_)),
+  global_map_ptr_(new CostmapWrapper("clean_costmap", tf_listener_ptr_)),
   local_costmap_ptr_(new CostmapWrapper("local_costmap", tf_listener_ptr_)),
   setup_reconfigure_(false)
 {
@@ -180,9 +184,9 @@ CostmapNavigationServer::CostmapNavigationServer(const TFPtr &tf_listener_ptr) :
   dsrv_costmap_->setCallback(boost::bind(&CostmapNavigationServer::reconfigure, this, _1, _2));
 
   // Load the optional mapping from planner/controller name to the costmap.
-  planner_name_to_costmap_ptr_ = loadStringToMaps("planners", private_nh_, global_costmap_ptr_, local_costmap_ptr_);
+  planner_name_to_costmap_ptr_ = loadStringToMaps("planners", private_nh_, global_costmap_ptr_, local_costmap_ptr_, global_map_ptr_);
   controller_name_to_costmap_ptr_ =
-      loadStringToMaps("controllers", private_nh_, global_costmap_ptr_, local_costmap_ptr_);
+      loadStringToMaps("controllers", private_nh_, global_costmap_ptr_, local_costmap_ptr_, global_map_ptr_);
 
   // initialize all plugins
   initializeServerComponents();
@@ -601,7 +605,7 @@ bool CostmapNavigationServer::callServiceCheckPoseCost(mbf_msgs::CheckPose::Requ
   double y = pose.pose.position.y;
   double yaw = tf::getYaw(pose.pose.orientation);
 
-  // ensure costmap is active so cost reflects latest sensor readings
+  // ensure costmap is active so cost reflects the latest sensor readings
   costmap->checkActivate();
 
   // pad raw footprint to the requested safety distance; note that we discard footprint_padding parameter effect
@@ -614,7 +618,7 @@ bool CostmapNavigationServer::callServiceCheckPoseCost(mbf_msgs::CheckPose::Requ
   response.state = mbf_msgs::CheckPose::Response::FREE;
   if (footprint_cells.empty())
   {
-    // no cells within footprint polygon must mean that robot is at least partly outside of the map
+    // no cells within footprint polygon must mean that robot is at least partly outside the map
     response.state = std::max(response.state, static_cast<uint8_t>(mbf_msgs::CheckPose::Response::OUTSIDE));
   }
   else
@@ -699,7 +703,7 @@ bool CostmapNavigationServer::callServiceCheckPathCost(mbf_msgs::CheckPath::Requ
       return false;
   }
 
-  // ensure costmap is active so cost reflects latest sensor readings
+  // ensure costmap is active so cost reflects the latest sensor readings
   costmap->checkActivate();
 
   // get target pose or current robot pose as x, y, yaw coordinates
@@ -752,7 +756,7 @@ bool CostmapNavigationServer::callServiceCheckPathCost(mbf_msgs::CheckPath::Requ
     if (cells_to_check.empty())
     {
       // if path_cells_only is true, this means that current path's pose is outside the map
-      // if not, no cells within footprint polygon means that robot is at least partly outside of the map
+      // if not, no cells within footprint polygon means that robot is at least partly outside the map
       response.state = std::max(response.state, static_cast<uint8_t>(mbf_msgs::CheckPath::Response::OUTSIDE));
     }
     else
