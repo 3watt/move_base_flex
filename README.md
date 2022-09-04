@@ -1,5 +1,12 @@
 # Move Base Flex: A Highly Flexible Navigation Framework:
 
+WATT 추가
+===================
+Global Map에 그려져 있지 않은 장애물(사람 등)로 인해 Path가 멀어지는 경우 장애물이 없는 상태의 Path와 비교할 수 있도록 global_map에서 sensor로 인식한 장애물이 포함되지 않는 clean_map type이 추가되었음.  
+
+Original Description
+===================
+
 This repository contains Move Base Flex (MBF), a backwards-compatible replacement for move_base. MBF can use existing plugins for move_base, and provides an enhanced version of the same ROS interface. It exposes action servers for planning, controlling and recovering, providing detailed information of the current state and the plugin's feedback. An external executive logic can use MBF and its actions to perform smart and flexible navigation strategies. For example, at [Magazino](https://www.magazino.eu/?lang=en) we have successfully deployed MBF at customer facilities to control TORU robots in highly dynamical environments. Furthermore, MBF enables the use of other map representations, e.g. meshes. The core features are:
  
 * Fully backwards-compatible with current ROS navigation.
