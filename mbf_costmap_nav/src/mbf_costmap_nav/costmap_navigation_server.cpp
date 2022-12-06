@@ -76,7 +76,8 @@ static std::string getStringElement(const XmlRpc::XmlRpcValue& value, const std:
  */
 StringToMap loadStringToMapsImpl(const std::string& resource, const ros::NodeHandle& nh,
                                  const CostmapWrapper::Ptr& global_costmap_ptr,
-                                 const CostmapWrapper::Ptr& local_costmap_ptr)
+                                 const CostmapWrapper::Ptr& local_costmap_ptr,
+                                 const CostmapWrapper::Ptr& global_map_ptr)
 {
   using namespace XmlRpc;
   XmlRpcValue raw;
@@ -94,7 +95,7 @@ StringToMap loadStringToMapsImpl(const std::string& resource, const ros::NodeHan
   // We support only 'local' or 'global' names for the costmap tag.
   mapping["global"] = global_costmap_ptr;
   mapping["local"] = local_costmap_ptr;
-
+  mapping["clean"] = global_map_ptr;
   const int size = raw.size();
   for (int ii = 0; ii != size; ++ii)
   {
@@ -136,11 +137,12 @@ StringToMap loadStringToMapsImpl(const std::string& resource, const ros::NodeHan
  */
 StringToMap loadStringToMaps(const std::string& resource, const ros::NodeHandle& nh,
                              const CostmapWrapper::Ptr& global_costmap_ptr,
-                             const CostmapWrapper::Ptr& local_costmap_ptr)
+                             const CostmapWrapper::Ptr& local_costmap_ptr,
+                             const CostmapWrapper::Ptr& global_map_ptr)
 {
   try
   {
-    return loadStringToMapsImpl(resource, nh, global_costmap_ptr, local_costmap_ptr);
+    return loadStringToMapsImpl(resource, nh, global_costmap_ptr, local_costmap_ptr, global_map_ptr);
   }
   catch (const XmlRpc::XmlRpcException& _ex)
   {
@@ -163,6 +165,7 @@ CostmapNavigationServer::CostmapNavigationServer(const TFPtr &tf_listener_ptr) :
   nav_core_planner_plugin_loader_("nav_core", "nav_core::BaseGlobalPlanner"),
   global_costmap_ptr_(new CostmapWrapper("global_costmap", tf_listener_ptr_)),
   local_costmap_ptr_(new CostmapWrapper("local_costmap", tf_listener_ptr_)),
+  global_map_ptr_(new CostmapWrapper("clean_costmap", tf_listener_ptr_)),
   setup_reconfigure_(false)
 {
   // advertise services and current goal topic
@@ -180,9 +183,9 @@ CostmapNavigationServer::CostmapNavigationServer(const TFPtr &tf_listener_ptr) :
   dsrv_costmap_->setCallback(boost::bind(&CostmapNavigationServer::reconfigure, this, _1, _2));
 
   // Load the optional mapping from planner/controller name to the costmap.
-  planner_name_to_costmap_ptr_ = loadStringToMaps("planners", private_nh_, global_costmap_ptr_, local_costmap_ptr_);
+  planner_name_to_costmap_ptr_ = loadStringToMaps("planners", private_nh_, global_costmap_ptr_, local_costmap_ptr_, global_map_ptr_);
   controller_name_to_costmap_ptr_ =
-      loadStringToMaps("controllers", private_nh_, global_costmap_ptr_, local_costmap_ptr_);
+      loadStringToMaps("controllers", private_nh_, global_costmap_ptr_, local_costmap_ptr_, global_map_ptr_);
 
   // initialize all plugins
   initializeServerComponents();
