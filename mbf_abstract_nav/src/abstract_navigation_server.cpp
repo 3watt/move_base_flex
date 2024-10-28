@@ -62,6 +62,7 @@ AbstractNavigationServer::AbstractNavigationServer(const TFPtr &tf_listener_ptr)
       robot_info_(*tf_listener_ptr, global_frame_, robot_frame_, tf_timeout_),
       controller_action_(name_action_exe_path, robot_info_),
       planner_action_(name_action_get_path, robot_info_),
+      check_planner_action_(name_action_check_path, robot_info_),
       recovery_action_(name_action_recovery, robot_info_),
       move_base_action_(name_action_move_base, robot_info_, recovery_plugin_manager_.getLoadedNames())
 {
@@ -78,6 +79,14 @@ AbstractNavigationServer::AbstractNavigationServer(const TFPtr &tf_listener_ptr)
       name_action_get_path,
       boost::bind(&mbf_abstract_nav::AbstractNavigationServer::callActionGetPath, this, _1),
       boost::bind(&mbf_abstract_nav::AbstractNavigationServer::cancelActionGetPath, this, _1),
+      false));
+
+  action_server_check_path_ptr_ = ActionServerCheckPathPtr(
+    new ActionServerCheckPath(
+      private_nh_,
+      name_action_check_path,
+      boost::bind(&mbf_abstract_nav::AbstractNavigationServer::callActionCheckPath, this, _1),
+      boost::bind(&mbf_abstract_nav::AbstractNavigationServer::cancelActionCheckPath, this, _1),
       false));
 
   action_server_exe_path_ptr_ = ActionServerExePathPtr(
@@ -179,6 +188,67 @@ void AbstractNavigationServer::cancelActionGetPath(ActionServerGetPath::GoalHand
   ROS_INFO_STREAM_NAMED("get_path", "Cancel action \"get_path\"");
   planner_action_.cancel(goal_handle);
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+void AbstractNavigationServer::callActionCheckPath(ActionServerCheckPath::GoalHandle goal_handle)
+{
+  const mbf_msgs::GetPathGoal &goal = *(goal_handle.getGoal().get());
+  const geometry_msgs::Point &p = goal.target_pose.pose.position;
+
+  std::string planner_name;
+  if(!planner_plugin_manager_.getLoadedNames().empty())
+  {
+    planner_name = goal.planner.empty() ? planner_plugin_manager_.getLoadedNames().front() : goal.planner;
+  }
+  else
+  {
+    mbf_msgs::GetPathResult result;
+    result.outcome = mbf_msgs::GetPathResult::INVALID_PLUGIN;
+    result.message = "No plugins loaded at all!";
+    ROS_WARN_STREAM_NAMED("check_path", result.message);
+    goal_handle.setRejected(result, result.message);
+    return;
+  }
+
+  if(!planner_plugin_manager_.hasPlugin(planner_name))
+  {
+    mbf_msgs::GetPathResult result;
+    result.outcome = mbf_msgs::GetPathResult::INVALID_PLUGIN;
+    result.message = "No plugin loaded with the given name \"" + goal.planner + "\"!";
+    ROS_WARN_STREAM_NAMED("check_path", result.message);
+    goal_handle.setRejected(result, result.message);
+    return;
+  }
+
+  mbf_abstract_core::AbstractPlanner::Ptr planner_plugin = planner_plugin_manager_.getPlugin(planner_name);
+  ROS_DEBUG_STREAM_NAMED("check_path", "Start action \"check_path\" using planner \"" << planner_name
+                        << "\" of type \"" << planner_plugin_manager_.getType(planner_name) << "\"");
+
+
+  if(planner_plugin)
+  {
+    mbf_abstract_nav::AbstractPlannerExecution::Ptr planner_execution
+        = newPlannerExecution(planner_name, planner_plugin);
+
+    //start another planning action
+    check_planner_action_.start(goal_handle, planner_execution);
+  }
+  else
+  {
+    mbf_msgs::GetPathResult result;
+    result.outcome = mbf_msgs::GetPathResult::INTERNAL_ERROR;
+    result.message = "Internal Error: \"planner_plugin\" pointer should not be a null pointer!";
+    ROS_FATAL_STREAM_NAMED("check_path", result.message);
+    goal_handle.setRejected(result, result.message);
+  }
+}
+
+void AbstractNavigationServer::cancelActionCheckPath(ActionServerCheckPath::GoalHandle goal_handle)
+{
+  ROS_INFO_STREAM_NAMED("check_path", "Cancel action \"get_path\"");
+  check_planner_action_.cancel(goal_handle);
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void AbstractNavigationServer::callActionExePath(ActionServerExePath::GoalHandle goal_handle)
 {
@@ -335,6 +405,7 @@ mbf_abstract_nav::AbstractRecoveryExecution::Ptr AbstractNavigationServer::newRe
 void AbstractNavigationServer::startActionServers()
 {
   action_server_get_path_ptr_->start();
+  action_server_check_path_ptr_->start();
   action_server_exe_path_ptr_->start();
   action_server_recovery_ptr_->start();
   action_server_move_base_ptr_->start();

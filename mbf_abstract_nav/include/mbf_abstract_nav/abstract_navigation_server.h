@@ -81,6 +81,8 @@ namespace mbf_abstract_nav
 //! GetPath action server
 typedef actionlib::ActionServer<mbf_msgs::GetPathAction> ActionServerGetPath;
 typedef boost::shared_ptr<ActionServerGetPath> ActionServerGetPathPtr;
+typedef actionlib::ActionServer<mbf_msgs::GetPathAction> ActionServerCheckPath;
+typedef boost::shared_ptr<ActionServerGetPath> ActionServerCheckPathPtr;
 
 //! ExePath action server
 typedef actionlib::ActionServer<mbf_msgs::ExePathAction> ActionServerExePath;
@@ -98,6 +100,8 @@ typedef boost::shared_ptr<ActionServerMoveBase> ActionServerMoveBasePtr;
 const std::string name_action_exe_path = "exe_path";
 //! GetPath action topic name
 const std::string name_action_get_path = "get_path";
+//! Another GetPath action topic name
+const std::string name_action_check_path = "check_path";
 //! Recovery action topic name
 const std::string name_action_recovery = "recovery";
 //! MoveBase action topic name
@@ -231,6 +235,10 @@ typedef boost::shared_ptr<dynamic_reconfigure::Server<mbf_abstract_nav::MoveBase
 
     virtual void cancelActionGetPath(ActionServerGetPath::GoalHandle goal_handle);
 
+    virtual void callActionCheckPath(ActionServerCheckPath::GoalHandle goal_handle);
+
+    virtual void cancelActionCheckPath(ActionServerCheckPath::GoalHandle goal_handle);
+
     /**
      * @brief ExePath action execution method. This method will be called if the action server receives a goal
      * @param goal SimpleActionServer goal containing all necessary parameters for the action execution. See the action
@@ -308,6 +316,7 @@ typedef boost::shared_ptr<dynamic_reconfigure::Server<mbf_abstract_nav::MoveBase
 
     //! shared pointer to the GetPath action server
     ActionServerGetPathPtr action_server_get_path_ptr_;
+    ActionServerCheckPathPtr action_server_check_path_ptr_;
 
     //! shared pointer to the MoveBase action server
     ActionServerMoveBasePtr action_server_move_base_ptr_;
@@ -350,6 +359,7 @@ typedef boost::shared_ptr<dynamic_reconfigure::Server<mbf_abstract_nav::MoveBase
 
     ControllerAction controller_action_;
     PlannerAction planner_action_;
+    PlannerAction check_planner_action_;
     RecoveryAction recovery_action_;
     MoveBaseAction move_base_action_;
   };
