@@ -235,7 +235,7 @@ bool AbstractPlannerExecution::cancel()
   // returns false if cancel is not implemented or rejected by the planner (will run until completion)
   if (!planner_->cancel())
   {
-    ROS_WARN_STREAM("Cancel planning failed or is not supported by the plugin. "
+    ROS_WARN_STREAM_THROTTLE(5.0, "Cancel planning failed or is not supported by the plugin. "
         << "Wait until the current planning finished!");
 
     return false;
@@ -340,7 +340,7 @@ void AbstractPlannerExecution::run()
           // disabled, and on the navigation server when the planner doesn't return for more that patience seconds.
           // In the second case, the navigation server has tried to cancel planning (possibly without success, as
           // old nav_core-based planners do not support canceling), and we add here the fact to the log for info
-          ROS_INFO_STREAM("Planning patience (" << patience_.toSec() << "s) has been exceeded"
+          ROS_INFO_STREAM_THROTTLE(5.0, "Planning patience (" << patience_.toSec() << "s) has been exceeded"
                                                 << (cancel_ ? "; planner canceled!" : ""));
           setState(PAT_EXCEEDED, true);
         }
